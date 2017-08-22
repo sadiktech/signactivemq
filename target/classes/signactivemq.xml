@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:signature="http://www.mulesoft.org/schema/mule/signature" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:jms="http://www.mulesoft.org/schema/mule/jms" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/signature http://www.mulesoft.org/schema/mule/signature/current/mule-signature.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <signature:config name="Signature" doc:name="Signature">
+        <signature:jce-signer-config key="mahindracomviva1"/>
+    </signature:config>
+    <jms:activemq-connector name="Active_MQ" specification="1.1" username="admin" password="admin" brokerURL="tcp://localhost:61716" validateConnections="true" doc:name="Active MQ"/>
+    <flow name="signactivemqFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/signvarifyActivemq" allowedMethods="POST" doc:name="HTTP"/>
+        <string-to-byte-array-transformer doc:name="String to Byte Array"/>
+        <signature:sign config-ref="Signature" variable="signVariable" doc:name="Signature"/>
+        <set-session-variable variableName="sessionsignVariable" value="#[flowVars.signVariable]" doc:name="Session Variable"/>
+        <jms:outbound-endpoint queue="singactivemq-new" connector-ref="Active_MQ" doc:name="JMS"/>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <set-payload value="This is paylaod  send to Vm : #[payload]" doc:name="Set Payload"/>
+    </flow>
+    <flow name="signactivemqFlow1">
+        <jms:inbound-endpoint queue="singactivemq-new" connector-ref="Active_MQ" doc:name="JMS"/>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <signature:verify-signature config-ref="Signature" expectedSignature="#[sessionVars.sessionsignVariable]" doc:name="Signature"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <logger message="This is final payload #[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+</mule>
